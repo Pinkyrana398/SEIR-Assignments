@@ -1,1 +1,1 @@
-Search Engine and Information Retrieval Assignments
+Search Engine and Information Retrieval
