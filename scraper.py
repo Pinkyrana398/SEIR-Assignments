@@ -1,40 +1,61 @@
 import sys
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
+import time
+import os
+
+# hide all chrome stderr messages
+sys.stderr = open(os.devnull, 'w')
+
+
 # First we are checking if user has provided URL
 if len(sys.argv) < 2:
-    print("Please provide a URL")
     sys.exit()
 
 # store URL in a variable url
 url = sys.argv[1]
-print("URL received:", url)
+
+if not url.startswith("http"):
+    url = "https://" + url
 
 
-# Check if page fetched successfully or not
-import requests
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
-try:
-    response = requests.get(url, headers=headers, verify=False)
-    response.raise_for_status()   
-    page_content = response.text
-    print("Page fetched successfully")
-except requests.exceptions.RequestException as e:
-    print("Error fetching the page:", e)
-    sys.exit()
+# setup headless chrome
+options = Options()
+options.add_argument("--headless=new")
+options.add_argument("--disable-gpu")
+options.add_argument("--log-level=3")
 
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
+# hide selenium logs
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
+options.add_experimental_option("useAutomationExtension", False)
+
+
+service = Service(ChromeDriverManager().install(), log_path=os.devnull)
+driver = webdriver.Chrome(service=service, options=options)
+
+driver.get(url)
+
+# wait for javascript to load
+time.sleep(5)
+
+# scroll page
+driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+time.sleep(3)
+
+page_content = driver.page_source
+driver.quit()
 
 # Change the html content in readable form
-from bs4 import BeautifulSoup
-
 content = BeautifulSoup(page_content, "html.parser")
-print("HTML parsed successfully")
 
 
 # Extract only title of the page
 if content.title:
     title_text = content.title.get_text()
-    print("\nTITLE:")
     print(title_text.strip())
 else:
     print("\nTITLE:")
@@ -44,7 +65,6 @@ else:
 # Extract only body text of the page
 if content.body:
     body_text = content.body.get_text(separator="\n", strip=True)
-    print("\nBODY:")
     print(body_text)
 else:
     print("\nBODY:")
@@ -52,7 +72,6 @@ else:
 
 
 # Extract all links of the page 
-print("\nLINKS:")
 allLinks = content.find_all("a")
 
 found_link = False
